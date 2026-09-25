@@ -340,23 +340,6 @@ recordsRef.on('value', snap=>{
 });
 
 }
-  connRef.on('value',snap=>{
-    if(snap.val()===true)status('Synced with shared database · '+tnow(),'ok');
-    else status('Offline — showing this device’s last known copy. Tap to retry','bad');
-  });
-
-  recordsRef.on('value',snap=>{
-    const v=snap.val()||{};
-    records=Object.keys(v).map(id=>({...v[id],id}));
-    save('isma_records',records); // local backup copy only, not the source of truth
-    renderAll();
-  },err=>{authFail(err)||status('Could not load records — tap to retry','bad')});
-
-  stockRef.on('value',snap=>{
-    stock=snap.val()||{};
-    save('isma_stock',stock);
-    renderStock();
-  },err=>authFail(err));
 
   configRef.on('value',snap=>{
     const v=snap.val();
