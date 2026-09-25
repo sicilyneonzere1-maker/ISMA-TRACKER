@@ -335,7 +335,6 @@ function initFirebase(){
   
 recordsRef.on('value', snap=>{
   records=Object.values(snap.val()||{});
-  cache();
   renderAll();
 });
 
