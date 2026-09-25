@@ -417,7 +417,8 @@ timberAllow=load('isma_timber',DEF_TIMBER);
 costs=load('isma_costs',{});
 renderSettings();renderAll();
 if(records.length){const ms=records.map(mk).filter(Boolean).sort();if(ms.length){Y=ms[ms.length-1].slice(0,4);M=ms[ms.length-1].slice(5);renderAll()}}
-if(FIREBASE_CONFIG.databaseURL&&KEYX)initFirebase();else status(FIREBASE_CONFIG.databaseURL?'Not connected — tap here to enter the passcode':'Not configured — tap here to set up Firebase','warn');
+if(FIREBASE_CONFIG.databaseURL)initFirebase();
+else status('Not configured — tap here to set up Firebase','warn');
 </script>
 </body>
 </html>
