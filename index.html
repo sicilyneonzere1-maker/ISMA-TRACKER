@@ -170,8 +170,8 @@ const NAMES={timber:'Timber',cement:'Cement',stones:'Stones/PSC',sand:'Sand',bal
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DEF_ALLOW={Adult:{cement:.5,stones:28,sand:3,ballast:.5,wire:1},Child:{cement:.25,stones:14,sand:1.5,ballast:.25,wire:.5}};
 const DEF_TIMBER={Adult:15,Child:8};
-const load=(k,f)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f}};
-const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const load=(k,f)=>{try{const v=firebase.getItem(k);return v?JSON.parse(v):f}catch(e){return f}};
+const save=(k,v)=>{try{firebase.setItem(k,JSON.stringify(v))}catch(e){}};
 let KEYX=load('isma_key','');
 const pad=n=>String(n).padStart(2,'0');
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
