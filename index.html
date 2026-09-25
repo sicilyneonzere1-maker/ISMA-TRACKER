@@ -332,7 +332,14 @@ function initFirebase(){
   metaRef=db.ref('meta');
   connRef=db.ref('.info/connected');
   fbReady=true;
+  
+recordsRef.on('value', snap=>{
+  records=Object.values(snap.val()||{});
+  cache();
+  renderAll();
+});
 
+}
   connRef.on('value',snap=>{
     if(snap.val()===true)status('Synced with shared database · '+tnow(),'ok');
     else status('Offline — showing this device’s last known copy. Tap to retry','bad');
