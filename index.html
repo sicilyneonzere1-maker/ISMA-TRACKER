@@ -341,14 +341,6 @@ recordsRef.on('value', snap=>{
 
 }
 
-  configRef.on('value',snap=>{
-    const v=snap.val();
-    if(v){
-      allow=v.allow||allow;timberAllow=v.timber||timberAllow;costs=v.costs||costs;
-      save('isma_allow',allow);save('isma_timber',timberAllow);save('isma_costs',costs);
-      renderSettings();renderOverview();renderSummary();
-    }
-  },err=>authFail(err));
 async function putRecord(r){return recordsRef.child(r.id).set(r)}
 async function updateRecord(r){return recordsRef.child(r.id).set(r)}
 async function delRecord(id){return recordsRef.child(id).remove()}
