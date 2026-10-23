@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
-  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -64,6 +64,16 @@ input[type=checkbox]{width:auto;margin:0;accent-color:#2f6b3a}
 .pill.ok{background:var(--ok);color:var(--g)}.pill.warn{background:#f6ecd0;color:#8a6410}.pill.bad{background:var(--flag-bg);color:var(--flag)}
 .imp{border-left:5px solid var(--gold)}.imp p{margin:0 0 10px;font:.9rem system-ui,sans-serif}
 .ro #addBtn,.ro #saveSet,.ro #saveSt,.ro .x,.ro #impGo{display:none}
+ .frm{display:inline-flex;align-items:center;gap:4px}
+.frmThumb{width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--line);cursor:pointer;vertical-align:middle}
+.frmPdf{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:6px;border:1px solid var(--line);background:var(--ok);color:var(--g);font:700 .68rem system-ui,sans-serif;cursor:pointer}
+.frmNone{color:var(--sub);font:.76rem system-ui,sans-serif}
+.rm{background:none;color:var(--flag);font-size:.72rem;padding:2px 4px}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
+#lightbox.open{display:flex}
+#lightbox img{max-width:100%;max-height:90vh;border-radius:8px}
+#lightbox .lbClose{position:absolute;top:18px;right:22px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:1.1rem}
+.upProg{font:.72rem system-ui,sans-serif;color:var(--sub);margin-top:-4px;margin-bottom:6px} 
 footer{max-width:1100px;margin:0 auto;padding:6px 20px 40px;color:var(--sub);font:.76rem system-ui,sans-serif}
 </style>
 </head>
@@ -98,7 +108,8 @@ footer{max-width:1100px;margin:0 auto;padding:6px 20px 40px;color:var(--sub);fon
     <div class="gc"><label>Ballast</label><input id="f_ballast" type="number" step="0.25" min="0" placeholder="0.5"></div>
     <div class="gc"><label>Wire mesh</label><input id="f_wire" type="number" step="0.5" min="0" placeholder="Adult 1 · Child 0.5"></div>
     <div class="gc"><label>Grave constructor cost (Ksh)</label><input id="f_labor" type="number" min="0" placeholder="0"></div>
-    <div class="gc"><label>Headstone cost (Ksh)</label><input id="f_head" type="number" min="0" placeholder="0"></div>
+   <div class="gc"><label>Headstone cost (Ksh)</label><input id="f_head" type="number" min="0" placeholder="0"></div>
+    <div><label>Grave construction form (photo/scan)</label><input id="f_form" type="file" accept="image/*,.pdf" capture="environment"><div class="upProg" id="formProg"></div></div>
     <div><label>Worker / site (optional)</label><input id="f_worker"></div>
     <div><label>Payment received (optional)</label><input id="f_pay" placeholder="30,000/="></div>
   </div>
@@ -117,7 +128,7 @@ footer{max-width:1100px;margin:0 auto;padding:6px 20px 40px;color:var(--sub);fon
   <h2>Records</h2>
   <div class="row"><input id="search" placeholder="Search by name or R/No..."><select id="fType"><option value="">All types</option><option value="burial">Normal burials</option><option value="construction">Grave constructions</option></select><select id="fCat"><option value="">All categories</option><option>Adult</option><option>Child</option></select><select id="fFlag"><option value="">All records</option><option value="1">Flagged only</option></select></div>
   <div class="act" style="margin:0 0 10px"><button class="sec" id="delSel">Delete selected (0)</button><button class="sec" id="delShown">Delete everything shown</button></div>
-  <div class="tw"><table><thead><tr><th><input type="checkbox" id="ckAll" title="Select all shown"></th><th>R/No</th><th>Date</th><th>Name</th><th>Type</th><th>Cat.</th><th>Timber</th><th>Cement</th><th>Stones</th><th>Sand</th><th>Ballast</th><th>Wire</th><th>Labor</th><th>Headstone</th><th>Total cost</th><th>Note</th><th></th></tr></thead><tbody id="tbody"></tbody></table><div class="empty" id="emptyMsg" style="display:none">No records for this selection yet.</div></div>
+  <div class="tw"><table><thead><tr><th><input type="checkbox" id="ckAll" title="Select all shown"></th><th>R/No</th><th>Date</th><th>Name</th><th>Type</th><th>Cat.</th><th>Timber</th><th>Cement</th><th>Stones</th><th>Sand</th><th>Ballast</th><th>Wire</th><th>Labor</th><th>Headstone</th><th>Total cost</th><th>Form</th><th>Note</th><th></th></tr></thead><tbody id="tbody"></tbody></table><div class="empty" id="emptyMsg" style="display:none">No records for this selection yet.</div></div>
 </div>
 
 <div class="panel">
@@ -137,6 +148,7 @@ footer{max-width:1100px;margin:0 auto;padding:6px 20px 40px;color:var(--sub);fon
 </div>
 
 </main>
+  <div id="lightbox"><button class="lbClose" id="lbClose">✕</button><img id="lbImg" alt="Grave construction form"></div>
 <footer>Records save to the ISMA shared Firebase database and appear on every device connected to it. Each device also keeps a backup copy, and unsent changes upload automatically when the internet returns. Tap the status pill at the top to connect or change the connection.</footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
@@ -157,7 +169,7 @@ const FIREBASE_CONFIG={
   messagingSenderId:"1082712185012",
   appId:"1:1082712185012:web:d29749f360e9eb486b9fe1"
 };
-let fbApp=null,db=null,recordsRef=null,stockRef=null,configRef=null,metaRef=null,connRef=null,fbReady=false;
+let fbApp=null,db=null,recordsRef=null,stockRef=null,configRef=null,metaRef=null,connRef=null,storageRef=null,fbReady=false;
 
 const status=(t,c)=>{const e=$('dbS');if(e){e.textContent=t;e.className='pill '+(c||'')}};
 const MATS=[{key:'cement',label:'Cement (bags)'},{key:'stones',label:'Stones/PSC'},{key:'sand',label:'Sand (W/B)'},{key:'ballast',label:'Ballast'},{key:'wire',label:'Wire mesh'}];
@@ -198,7 +210,7 @@ function toISO(d){d=(d||'')+'';if(/^\d{4}-\d\d-\d\d$/.test(d))return d;const m=d
 let allow=DEF_ALLOW;
 let timberAllow=DEF_TIMBER;
 let costs={};
-let stock={};
+let stock={};let stDirty=null;
 let records=[];
 let Y,M;(()=>{const k=today().slice(0,7);Y=k.slice(0,4);M=k.slice(5)})();
 const selKey=()=>(Y&&M)?Y+'-'+M:'';
@@ -251,11 +263,14 @@ function renderRecords(){
   const list=inSel().filter(r=>(!q||(r.name||'').toLowerCase().includes(q)||(r.rno||'').toLowerCase().includes(q))&&(!t||r.type===t)&&(!c||r.cat===c)&&(!f||checkFlag(r).flagged))
     .slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   shown=list.map(r=>r.id);$('emptyMsg').style.display=list.length?'none':'block';
-  const cell=(r,k)=>((r.type==='burial')===(k==='timber'))?(r[k]||0):'–';
+const cell=(r,k)=>(r[k]||0);
+const formCell=r=>r.formUrl?(r.formIsPdf?`<span class="frm"><a class="frmPdf" href="${r.formUrl}" target="_blank" rel="noopener" title="Open PDF form">PDF</a><button class="rm" data-rmid="${r.id}" title="Remove form">✕</button></span>`:`<span class="frm"><img class="frmThumb" src="${r.formUrl}" data-view="${r.formUrl}" title="View form"><button class="rm" data-rmid="${r.id}" title="Remove form">✕</button></span>`):'<span class="frmNone">—</span>';
   $('tbody').innerHTML=list.map(r=>{const {flagged,ex}=checkFlag(r);const note=flagged?Object.entries(ex).map(([k,v])=>`+${v} ${k}`).join(', '):'—';
     return `<tr${flagged?' class="flag"':''}><td><input type="checkbox" class="ck" data-id="${r.id}"${SELK.has(r.id)?' checked':''}></td><td>${r.rno||''}</td><td>${r.date||''}</td><td>${r.name||''}</td><td><span class="tag ${r.type==='burial'?'b':'c'}">${r.type==='burial'?'Burial':'Construction'}</span></td><td>${r.cat}</td>${KEYS.map(k=>`<td>${cell(r,k)}</td>`).join('')}<td>${cell(r,'labor')==='–'?'–':(r.labor||0).toLocaleString()}</td><td>${cell(r,'head')==='–'?'–':(r.head||0).toLocaleString()}</td><td>${recordCost(r).toLocaleString()}</td><td class="${flagged?'fn':''}">${note}</td><td><button class="ed" data-id="${r.id}" title="Edit">✎</button><button class="x" data-id="${r.id}" title="Delete">✕</button></td></tr>`}).join('');
-  document.querySelectorAll('.x').forEach(b=>b.onclick=guard(async()=>{if(!confirm('Delete this record?'))return;await delRecord(b.dataset.id);SELK.delete(b.dataset.id);renderAll()}));
-  document.querySelectorAll('.ed').forEach(b=>b.onclick=()=>startEdit(b.dataset.id));
+  document.querySelectorAll('.x').forEach(b=>b.onclick=guard(async()=>{if(!confirm('Delete this record?'))return;await delRecord(b.dataset.id);records=records.filter(r=>r.id!==b.dataset.id);SELK.delete(b.dataset.id);renderAll()}
+ document.querySelectorAll('.ed').forEach(b=>b.onclick=()=>startEdit(b.dataset.id));
+  document.querySelectorAll('.frmThumb').forEach(im=>im.onclick=()=>{$('lbImg').src=im.dataset.view;$('lightbox').classList.add('open')});
+  document.querySelectorAll('.rm').forEach(b=>b.onclick=guard(async()=>{if(!confirm('Remove the attached form from this record?'))return;const r=records.find(x=>x.id===b.dataset.rmid);if(r)await removeForm(r);}));
   document.querySelectorAll('.ck').forEach(c=>c.onchange=()=>{c.checked?SELK.add(c.dataset.id):SELK.delete(c.dataset.id);selLabel()});
   $('ckAll').checked=shown.length>0&&shown.every(i=>SELK.has(i));selLabel();
 }
@@ -269,6 +284,7 @@ const delMany=guard(async ids=>{
   if(!askDel(ids.length))return;
   ids.forEach(i=>SELK.delete(i));
   await delRecords(ids);
+  records=records.filter(r=>!ids.includes(r.id));
   renderAll();
 });
 $('delSel').onclick=()=>delMany(selIds());
@@ -284,7 +300,7 @@ function startEdit(id){
 }
 function resetForm(){
   ['f_rno','f_name','f_timber','f_cement','f_stones','f_sand','f_ballast','f_wire','f_labor','f_head','f_worker','f_pay'].forEach(id=>$(id).value='');
-  editId=null;$('addBtn').textContent='Add record';$('cancelEd').style.display='none';$('logT').textContent='Log a new record';
+ editId=null;$('addBtn').textContent='Add record';$('cancelEd').style.display='none';$('logT').textContent='Log a new record';$('f_form').value='';$('formProg').textContent='';
 }
 $('cancelEd').onclick=()=>{resetForm();$('f_date').value=today()};
 
@@ -307,16 +323,51 @@ function stockCalc(t){
   return res}
 function renderStock(){
   const sel=selKey();
+  if(stDirty===sel)return;
   $('stWrap').style.display=sel?'':'none';$('stE').style.display=sel?'none':'block';$('stT').textContent=sel?'Stock balance — '+ml(sel):'Stock balance';
   if(!sel){$('stB').innerHTML='';return}
   const c=stockCalc(sel);
   $('stB').innerHTML=Object.keys(NAMES).map(k=>{const x=c[k],fl=x.disc!==null&&x.disc!==0;
     return `<tr${fl?' class="flag"':''}><td>${NAMES[k]}</td><td><input class="si" data-k="${k}" data-f="bf" type="number" value="${x.man??''}" placeholder="${num(x.bf)}"></td><td><input class="si" data-k="${k}" data-f="pur" type="number" value="${x.pur||''}" placeholder="0"></td><td>${num(x.util)}</td><td>${num(x.cf)}</td><td><input class="si" data-k="${k}" data-f="act" type="number" value="${x.act??''}" placeholder="—"></td><td class="${fl?'fn':''}">${x.disc===null?'—':x.disc}</td></tr>`}).join('');
 }
-$('saveSt').onclick=guard(async()=>{const sel=selKey();if(!sel)return;stock[sel]=stock[sel]||{};document.querySelectorAll('#stB input').forEach(i=>{const k=i.dataset.k;stock[sel][k]=stock[sel][k]||{};stock[sel][k][i.dataset.f]=i.value===''?'':parseFloat(i.value)});await saveStockMonth(sel);renderStock()});
+$('stB').oninput=()=>{stDirty=selKey()};
+$('saveSt').onclick=guard(async()=>{const sel=selKey();if(!sel)return;stock[sel]=stock[sel]||{};document.querySelectorAll('#stB input').forEach(i=>{const k=i.dataset.k;stock[sel][k]=stock[sel][k]||{};stock[sel][k][i.dataset.f]=i.value===''?'':parseFloat(i.value)});await saveStockMonth(sel);stDirty=null;renderStock()});
 
-function guard(fn){return async(...a)=>{try{await fn(...a)}catch(e){alert('Could not save. Please check your internet connection and try again.'+(e&&e.code?' ('+e.code+')':''))}}}
-const tnow=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const max=1600,scale=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');c.width=img.width*scale;c.height=img.height*scale;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b=>{URL.revokeObjectURL(url);b?resolve(b):reject(new Error('compress failed'))},'image/jpeg',0.82);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('could not read image'))};
+    img.src=url;
+  });
+}
+async function uploadForm(id,file){
+  if(!storageRef)throw new Error('Storage is not set up yet.');
+  const isPdf=/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name);
+  const blob=isPdf?file:await compressImage(file);
+  const ref=storageRef.child(id+(isPdf?'.pdf':'.jpg'));
+  await new Promise((resolve,reject)=>{
+    const task=ref.put(blob,{contentType:isPdf?'application/pdf':'image/jpeg'});
+    task.on('state_changed',snap=>{
+      $('formProg').textContent='Uploading form… '+Math.round(snap.bytesTransferred/snap.totalBytes*100)+'%';
+    },reject,resolve);
+  });
+  $('formProg').textContent='';
+  return {url:await ref.getDownloadURL(),isPdf};
+}
+async function removeForm(r){
+  if(!r.formUrl)return;
+  try{const old=storageRef&&storageRef.child(r.id+(r.formIsPdf?'.pdf':'.jpg'));if(old)await old.delete()}catch(e){}
+  delete r.formUrl;delete r.formIsPdf;
+  await updateRecord(r);
+}
+$('lbClose').onclick=()=>$('lightbox').classList.remove('open');
+$('lightbox').onclick=e=>{if(e.target.id==='lightbox')$('lightbox').classList.remove('open')};
 
 // ==== Firebase Realtime Database layer (replaces the old localStorage-backed persistence) ====
 function authFail(e){if(e&&(e.code==='PERMISSION_DENIED')){status('Wrong passcode — tap here to enter it again','bad');return true}return false}
@@ -330,14 +381,22 @@ function initFirebase(){
   stockRef=db.ref('stock');
   configRef=db.ref('config');
   metaRef=db.ref('meta');
-  connRef=db.ref('.info/connected');
+   connRef=db.ref('.info/connected');
+  try{storageRef=firebase.storage().ref('forms')}catch(e){storageRef=null}
   fbReady=true;
   
 recordsRef.on('value', snap=>{
   records=Object.values(snap.val()||{});
   renderAll();
- status('Synced with shared database · '+tnow(),'ok'); 
+  status('Synced with shared database · '+tnow(),'ok');
+}, err=>{
+  status('Could not read the shared database'+(err&&err.code?' ('+err.code+')':'')+' — tap here','bad');
 });
+
+stockRef.on('value', snap=>{
+  stock=snap.val()||{};
+  if(stDirty===null)renderStock();
+}, ()=>{});
 
 }
 
@@ -375,16 +434,25 @@ $('imFile').onchange=guard(async e=>{
 
 function renderAll(){renderPickers();renderOverview();renderRecords();renderSummary();renderStock()}
 
-function typeUI(){const b=$('f_type').value==='burial';document.querySelectorAll('.gb').forEach(e=>e.style.display=b?'':'none');document.querySelectorAll('.gc').forEach(e=>e.style.display=b?'none':'')}
+function typeUI(){}
 $('f_type').onchange=typeUI;typeUI();$('f_date').value=today();
 
 $('addBtn').onclick=guard(async()=>{
   const v=id=>$(id).value.trim(),n=id=>parseFloat($(id).value)||0,b=v('f_type')==='burial';
   if(!v('f_name')){alert('Please enter the deceased name.');return}
   if(!v('f_date')){alert('Please pick the date.');return}
-  const r={id:editId||Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:v('f_type'),rno:v('f_rno'),date:v('f_date'),name:v('f_name'),cat:v('f_cat'),worker:v('f_worker'),payment:v('f_pay'),
-    timber:b?n('f_timber'):0,cement:b?0:n('f_cement'),stones:b?0:n('f_stones'),sand:b?0:n('f_sand'),ballast:b?0:n('f_ballast'),wire:b?0:n('f_wire'),labor:b?0:n('f_labor'),head:b?0:n('f_head')};
+ const r={id:editId||Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:v('f_type'),rno:v('f_rno'),date:v('f_date'),name:v('f_name'),cat:v('f_cat'),worker:v('f_worker'),payment:v('f_pay'),
+    timber:n('f_timber'),cement:n('f_cement'),stones:n('f_stones'),sand:n('f_sand'),ballast:n('f_ballast'),wire:n('f_wire'),labor:n('f_labor'),head:n('f_head')};
+const existing=editId?records.find(x=>x.id===editId):null;
+  if(existing&&existing.formUrl){r.formUrl=existing.formUrl;r.formIsPdf=existing.formIsPdf}
+  const file=$('f_form').files[0];
+  if(file){
+    try{const up=await uploadForm(r.id,file);r.formUrl=up.url;r.formIsPdf=up.isPdf}
+    catch(e){$('formProg').textContent='';alert('The form photo could not be uploaded, but the record was saved without it. '+(e&&e.message?e.message:''))}
+  }
   if(editId)await updateRecord(r);else await putRecord(r);
+  const idx=records.findIndex(x=>x.id===r.id);
+  if(idx>-1)records[idx]=r;else records.push(r);
   resetForm();
   Y=mk(r).slice(0,4);M=mk(r).slice(5);renderAll();
 });
