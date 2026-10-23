@@ -375,29 +375,44 @@ function authFail(e){if(e&&(e.code==='PERMISSION_DENIED')){status('Wrong passcod
 function initFirebase(){
   if(!FIREBASE_CONFIG.databaseURL){status('Not configured — tap here to set up Firebase','warn');return}
   if(fbReady)return;
-  fbApp=firebase.initializeApp(FIREBASE_CONFIG);
-  db=firebase.database();
+  try{
+    fbApp=firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.database();
+  }catch(e){
+    console.error(e);
+    status('Firebase setup error: '+e.message+' — tap here','bad');
+    return;
+  }
   recordsRef=db.ref('records');
   stockRef=db.ref('stock');
   configRef=db.ref('config');
   metaRef=db.ref('meta');
-   connRef=db.ref('.info/connected');
+  connRef=db.ref('.info/connected');
   try{storageRef=firebase.storage().ref('forms')}catch(e){storageRef=null}
   fbReady=true;
-  
-recordsRef.on('value', snap=>{
-  records=Object.values(snap.val()||{});
-  renderAll();
-  status('Synced with shared database · '+tnow(),'ok');
-}, err=>{
-  status('Could not read the shared database'+(err&&err.code?' ('+err.code+')':'')+' — tap here','bad');
-});
 
-stockRef.on('value', snap=>{
-  stock=snap.val()||{};
-  if(stDirty===null)renderStock();
-}, ()=>{});
+  let gotData=false, connTimer=setTimeout(()=>{
+    if(!gotData) status('Cannot reach the database — check the databaseURL and internet — tap here','bad');
+  },10000);
 
+  connRef.on('value', snap=>{
+    if(snap.val()===true && !gotData) status('Connected, loading data…','warn');
+  });
+
+  recordsRef.on('value', snap=>{
+    gotData=true; clearTimeout(connTimer);
+    records=Object.values(snap.val()||{});
+    renderAll();
+    status('Synced with shared database · '+tnow(),'ok');
+  }, err=>{
+    clearTimeout(connTimer);
+    status('Could not read the shared database'+(err&&err.code?' ('+err.code+')':'')+' — tap here','bad');
+  });
+
+  stockRef.on('value', snap=>{
+    stock=snap.val()||{};
+    if(stDirty===null)renderStock();
+  }, ()=>{});
 }
 
 async function putRecord(r){return recordsRef.child(r.id).set(r)}
