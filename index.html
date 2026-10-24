@@ -270,12 +270,23 @@ function renderRecords(){
     .slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   shown=list.map(r=>r.id);$('emptyMsg').style.display=list.length?'none':'block';
 const cell=(r,k)=>(r[k]||0);
-const formCell=r=>r.formUrl?(r.formIsPdf?`<span class="frm"><a class="frmPdf" href="${r.formUrl}" target="_blank" rel="noopener" title="Open PDF form">PDF</a><button class="rm" data-rmid="${r.id}" title="Remove form">✕</button></span>`:`<span class="frm"><img class="frmThumb" src="${r.formUrl}" data-view="${r.formUrl}" title="View form"><button class="rm" data-rmid="${r.id}" title="Remove form">✕</button></span>`):'<span class="frmNone">—</span>';
+const formCell=r=>r.hasForm?`<span class="frm"><button class="sec" data-form="${r.id}" style="padding:4px 8px">${r.formIsPdf?'PDF':'View'}</button><button class="rm" data-rmid="${r.id}" title="Remove form">✕</button></span>`:'<span class="frmNone">—</span>';
   $('tbody').innerHTML=list.map(r=>{const {flagged,ex}=checkFlag(r);const note=flagged?Object.entries(ex).map(([k,v])=>`+${v} ${k}`).join(', '):'—';
     return `<tr${flagged?' class="flag"':''}><td><input type="checkbox" class="ck" data-id="${r.id}"${SELK.has(r.id)?' checked':''}></td><td>${r.rno||''}</td><td>${r.date||''}</td><td>${r.name||''}</td><td><span class="tag ${r.type==='burial'?'b':'c'}">${r.type==='burial'?'Burial':'Construction'}</span></td><td>${r.cat}</td>${KEYS.map(k=>`<td>${cell(r,k)}</td>`).join('')}<td>${cell(r,'labor')==='–'?'–':(r.labor||0).toLocaleString()}</td><td>${cell(r,'head')==='–'?'–':(r.head||0).toLocaleString()}</td><td>${recordCost(r).toLocaleString()}</td><td class="${flagged?'fn':''}">${note}</td><td><button class="ed" data-id="${r.id}" title="Edit">✎</button><button class="x" data-id="${r.id}" title="Delete">✕</button></td></tr>`}).join('');
 document.querySelectorAll('.x').forEach(b=>b.onclick=guard(async()=>{if(!confirm('Delete this record?'))return;await delRecord(b.dataset.id);records=records.filter(r=>r.id!==b.dataset.id);SELK.delete(b.dataset.id);renderAll()}));
   document.querySelectorAll('.ed').forEach(b=>b.onclick=()=>startEdit(b.dataset.id));
   document.querySelectorAll('.frmThumb').forEach(im=>im.onclick=()=>{$('lbImg').src=im.dataset.view;$('lightbox').classList.add('open')});
+  document.querySelectorAll('[data-form]').forEach(b=>b.onclick=async()=>{
+  try{
+    const f=(await db.ref('forms/'+b.dataset.form).once('value')).val();
+    if(!f){alert('Form not found.');return}
+    if(f.pdf){
+      const bin=atob(f.data.split(',')[1]),arr=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+      window.open(URL.createObjectURL(new Blob([arr],{type:'application/pdf'})),'_blank');
+    }else{$('lbImg').src=f.data;$('lightbox').classList.add('open')}
+  }catch(e){alert('Could not load the form: '+(e&&e.message?e.message:e))}
+});
   document.querySelectorAll('.rm').forEach(b=>b.onclick=guard(async()=>{if(!confirm('Remove the attached form from this record?'))return;const r=records.find(x=>x.id===b.dataset.rmid);if(r)await removeForm(r);}));
   document.querySelectorAll('.ck').forEach(c=>c.onchange=()=>{c.checked?SELK.add(c.dataset.id):SELK.delete(c.dataset.id);selLabel()});
   $('ckAll').checked=shown.length>0&&shown.every(i=>SELK.has(i));selLabel();
@@ -343,33 +354,38 @@ function compressImage(file){
   return new Promise((resolve,reject)=>{
     const img=new Image(),url=URL.createObjectURL(file);
     img.onload=()=>{
-      const max=1600,scale=Math.min(1,max/Math.max(img.width,img.height));
+      const max=1100,scale=Math.min(1,max/Math.max(img.width,img.height));
       const c=document.createElement('canvas');c.width=img.width*scale;c.height=img.height*scale;
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-      c.toBlob(b=>{URL.revokeObjectURL(url);b?resolve(b):reject(new Error('compress failed'))},'image/jpeg',0.82);
+      c.toBlob(b=>{URL.revokeObjectURL(url);b?resolve(b):reject(new Error('compress failed'))},'image/jpeg',0.7);
     };
     img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('could not read image'))};
     img.src=url;
   });
 }
-async function uploadForm(id,file){
-  if(!storageRef)throw new Error('Storage is not set up yet.');
-  const isPdf=/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name);
-  const blob=isPdf?file:await compressImage(file);
-  const ref=storageRef.child(id+(isPdf?'.pdf':'.jpg'));
-  await new Promise((resolve,reject)=>{
-    const task=ref.put(blob,{contentType:isPdf?'application/pdf':'image/jpeg'});
-    task.on('state_changed',snap=>{
-      $('formProg').textContent='Uploading form… '+Math.round(snap.bytesTransferred/snap.totalBytes*100)+'%';
-    },reject,resolve);
+function fileToDataUrl(blob){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>res(fr.result);
+    fr.onerror=()=>rej(new Error('Could not read the file'));
+    fr.readAsDataURL(blob);
   });
+}
+async function uploadForm(id,file){
+  if(!db)throw new Error('Not connected to the database yet.');
+  const isPdf=/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name);
+  if(isPdf&&file.size>700*1024)throw new Error('This PDF is over 700 KB. Please photograph the form instead.');
+  const blob=isPdf?file:await compressImage(file);
+  const data=await fileToDataUrl(blob);
+  $('formProg').textContent='Saving form…';
+  await db.ref('forms/'+id).set({data,pdf:isPdf});
   $('formProg').textContent='';
-  return {url:await ref.getDownloadURL(),isPdf};
+  return {isPdf};
 }
 async function removeForm(r){
-  if(!r.formUrl)return;
-  try{const old=storageRef&&storageRef.child(r.id+(r.formIsPdf?'.pdf':'.jpg'));if(old)await old.delete()}catch(e){}
-  delete r.formUrl;delete r.formIsPdf;
+  if(!r.hasForm)return;
+  try{await db.ref('forms/'+r.id).remove()}catch(e){}
+  delete r.hasForm;delete r.formIsPdf;
   await updateRecord(r);
 }
 $('lbClose').onclick=()=>$('lightbox').classList.remove('open');
@@ -423,8 +439,8 @@ function initFirebase(){
 
 async function putRecord(r){return recordsRef.child(r.id).set(r)}
 async function updateRecord(r){return recordsRef.child(r.id).set(r)}
-async function delRecord(id){return recordsRef.child(id).remove()}
-async function delRecords(ids){const u={};ids.forEach(id=>u[id]=null);return recordsRef.update(u)}
+async function delRecords(ids){const u={};ids.forEach(id=>{u['records/'+id]=null;u['forms/'+id]=null});return db.ref().update(u)}
+async function delRecord(id){return delRecords([id])}
 async function saveConfig(){return configRef.set({allow,timber:timberAllow,costs})}
 async function saveStockMonth(month){return stockRef.child(month).set(stock[month])}
 
@@ -465,12 +481,20 @@ $('addBtn').onclick=guard(async()=>{
  const r={id:editId||Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:v('f_type'),rno:v('f_rno'),date:v('f_date'),name:v('f_name'),cat:v('f_cat'),worker:v('f_worker'),payment:v('f_pay'),
     timber:n('f_timber'),cement:n('f_cement'),stones:n('f_stones'),sand:n('f_sand'),ballast:n('f_ballast'),wire:n('f_wire'),labor:n('f_labor'),head:n('f_head')};
 const existing=editId?records.find(x=>x.id===editId):null;
-  if(existing&&existing.formUrl){r.formUrl=existing.formUrl;r.formIsPdf=existing.formIsPdf}
-  const file=$('f_form').files[0];
-  if(file){
-    try{const up=await uploadForm(r.id,file);r.formUrl=up.url;r.formIsPdf=up.isPdf}
-    catch(e){$('formProg').textContent='';alert('The form photo could not be uploaded, but the record was saved without it. '+(e&&e.message?e.message:''))}
+if(existing&&existing.hasForm){r.hasForm=true;r.formIsPdf=existing.formIsPdf}
+const file=$('f_form').files[0];
+if(file){
+  try{
+    const up=await Promise.race([
+      uploadForm(r.id,file),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('Upload timed out.')),20000))
+    ]);
+    r.hasForm=true;r.formIsPdf=up.isPdf;
+  }catch(e){
+    $('formProg').textContent='';
+    alert('The form could not be saved, but the record will be saved without it. '+(e&&e.message?e.message:''));
   }
+}
   if(editId)await updateRecord(r);else await putRecord(r);
   const idx=records.findIndex(x=>x.id===r.id);
   if(idx>-1)records[idx]=r;else records.push(r);
