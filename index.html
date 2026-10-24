@@ -190,7 +190,7 @@ const MATS=[{key:'cement',label:'Cement (bags)'},{key:'stones',label:'Stones/PSC
 const KEYS=['timber',...MATS.map(m=>m.key)];
 const NAMES={timber:'Timber',cement:'Cement',stones:'Stones/PSC',sand:'Sand',ballast:'Ballast',wire:'Wire mesh',others:'Others'};
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const DEF_ALLOW={Adult:{cement:.5,stones:28,sand:3,ballast:.5,wire:1},Child:{cement:.25,stones:14,sand:1.5,ballast:.25,wire:.5}};
+const DEF_ALLOW={Adult:{cement:1.5,stones:28,sand:3,ballast:1.5,wire:1},Child:{cement:.5,stones:14,sand:1.5,ballast:1,wire:.5}};
 const DEF_TIMBER={Adult:15,Child:8};
 const load=(k,f)=>{
   try{
