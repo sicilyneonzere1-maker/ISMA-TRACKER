@@ -76,10 +76,16 @@ input[type=checkbox]{width:auto;margin:0;accent-color:#2f6b3a}
 #lightbox .lbClose{position:absolute;top:18px;right:22px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:1.1rem}
 .upProg{font:.72rem system-ui,sans-serif;color:var(--sub);margin-top:-4px;margin-bottom:6px} 
 footer{max-width:1100px;margin:0 auto;padding:6px 20px 40px;color:var(--sub);font:.76rem system-ui,sans-serif}
+.hd>div:last-child{min-width:0;flex:1}
+.run{overflow:hidden;white-space:nowrap}
+.run h1{display:inline-block;padding-left:100%;animation:run 14s linear infinite}
+.run:hover h1{animation-play-state:paused}
+@keyframes run{to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.run h1{animation:none;padding-left:0}} 
 </style>
 </head>
 <body>
-<header><div class="hd"><div class="logo" role="img" aria-label="ISMA logo"></div><div><div class="kick">ISMA</div><h1>Burial &amp; Grave Construction Tracker</h1><p>Islamia School &amp; Mosque Association</p></div></div></header>
+<header><div class="hd"><div class="logo" role="img" aria-label="ISMA logo"></div><div><div class="kick">ISMA</div><div class="run"><h1>Burial &amp; Grave Construction Tracker</h1></div><p>Islamia School &amp; Mosque Association</p></div></div></header>
 <main>
 
 <div class="bar"><div><label for="yearSel">Year</label><select id="yearSel"></select></div><div><label for="monthSel">Month</label><select id="monthSel"></select></div><div class="pill" id="dbS" style="cursor:pointer" title="Tap to connect or retry">Starting…</div><div class="sub" style="margin:0 0 8px">Pick a year and month — the overview, records and stock below follow it. Choose “Whole year” for a yearly view. A • marks months that have records.</div></div>
